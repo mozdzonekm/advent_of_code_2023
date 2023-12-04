@@ -1,7 +1,5 @@
 advent_of_code::solution!(1);
 
-use regex::{Captures, Regex};
-
 pub fn part_one(input: &str) -> Option<u32> {
     Some(
         input
@@ -17,59 +15,48 @@ pub fn part_one(input: &str) -> Option<u32> {
     )
 }
 
-fn get_first_digit(line: &str, re: &Regex) -> Option<u32> {
-    re.replace_all(line, |cap: &Captures| match &cap[0] {
-        "one" => "1",
-        "two" => "2",
-        "three" => "3",
-        "four" => "4",
-        "five" => "5",
-        "six" => "6",
-        "seven" => "7",
-        "eight" => "8",
-        "nine" => "9",
-        _ => panic!("Unknown capture!"),
-    })
-    .chars()
-    .filter_map(|c| c.to_digit(10))
-    .collect::<Vec<u32>>()
-    .first()
-    .copied()
+fn starts_with_digit(input: &str) -> Option<u32> {
+    if input.starts_with('1') || input.starts_with("one") {
+        Some(1)
+    } else if input.starts_with('2') || input.starts_with("two") {
+        Some(2)
+    } else if input.starts_with('3') || input.starts_with("three") {
+        Some(3)
+    } else if input.starts_with('4') || input.starts_with("four") {
+        Some(4)
+    } else if input.starts_with('5') || input.starts_with("five") {
+        Some(5)
+    } else if input.starts_with('6') || input.starts_with("six") {
+        Some(6)
+    } else if input.starts_with('7') || input.starts_with("seven") {
+        Some(7)
+    } else if input.starts_with('8') || input.starts_with("eight") {
+        Some(8)
+    } else if input.starts_with('9') || input.starts_with("nine") {
+        Some(9)
+    } else {
+        None
+    }
 }
 
-fn get_last_digit(line: &str, re_reversed: &Regex) -> Option<u32> {
-    re_reversed
-        .replace_all(
-            line.chars().rev().collect::<String>().as_str(),
-            |cap: &Captures| match &cap[0] {
-                "eno" => "1",
-                "owt" => "2",
-                "eerht" => "3",
-                "ruof" => "4",
-                "evif" => "5",
-                "xis" => "6",
-                "neves" => "7",
-                "thgie" => "8",
-                "enin" => "9",
-                _ => panic!("Unknown capture!"),
-            },
-        )
-        .chars()
-        .filter_map(|c| c.to_digit(10))
-        .collect::<Vec<u32>>()
-        .first()
-        .copied()
+fn get_first_digit(line: &str, check_order: impl Iterator<Item = usize>) -> Option<u32> {
+    for i in check_order {
+        let digit = starts_with_digit(&line[i..]);
+        if digit.is_some() {
+            return digit;
+        }
+    }
+    dbg!(&line);
+    None
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    let re = Regex::new("(one|two|three|four|five|six|seven|eight|nine)").unwrap();
-    let re_reversed = Regex::new("(eno|owt|eerht|ruof|evif|xis|neves|thgie|enin)").unwrap();
     Some(
         input
             .lines()
             .map(|line| {
-                let first_digit = get_first_digit(line, &re);
-                let last_digit = get_last_digit(line, &re_reversed);
+                let first_digit = get_first_digit(line, 0..line.len());
+                let last_digit = get_first_digit(line, (0..line.len()).rev());
                 10 * first_digit.unwrap() + last_digit.unwrap()
             })
             .sum(),
