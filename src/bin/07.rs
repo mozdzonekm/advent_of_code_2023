@@ -28,6 +28,29 @@ enum Card {
     Joker = 1,
 }
 
+fn parse_cards(card_chars: &str, joker_instead_of_jack: bool) -> Vec<Card> {
+    card_chars
+        .chars()
+        .map(|c| match c {
+            'A' => Card::Ace,
+            'K' => Card::King,
+            'Q' => Card::Queen,
+            'J' if joker_instead_of_jack => Card::Joker,
+            'J' if !joker_instead_of_jack => Card::Jack,
+            'T' => Card::Ten,
+            '9' => Card::Nine,
+            '8' => Card::Eight,
+            '7' => Card::Seven,
+            '6' => Card::Six,
+            '5' => Card::Five,
+            '4' => Card::Four,
+            '3' => Card::Three,
+            '2' => Card::Two,
+            _ => panic!("Unknown Card"),
+        })
+        .collect::<Vec<Card>>()
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum HandType {
     Five = 7,
@@ -39,6 +62,19 @@ enum HandType {
     HighCard = 1,
 }
 
+fn get_hand_type(largest_group_size: Option<u32>, second_group_size: Option<u32>) -> HandType {
+    match (largest_group_size, second_group_size) {
+        (Some(5), _) => HandType::Five,
+        (Some(4), _) => HandType::Four,
+        (Some(3), Some(2)) => HandType::Full,
+        (Some(3), _) => HandType::Three,
+        (Some(2), Some(2)) => HandType::TwoPairs,
+        (Some(2), _) => HandType::Pair,
+        (Some(1), _) => HandType::HighCard,
+        _ => panic!("Unknown HandType"),
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Hand {
     cards: Vec<Card>,
@@ -46,28 +82,15 @@ struct Hand {
 }
 
 impl Hand {
-    fn new(card_chars: &str) -> Hand {
-        let cards: Vec<Card> = card_chars
-            .chars()
-            .map(|c| match c {
-                'A' => Card::Ace,
-                'K' => Card::King,
-                'Q' => Card::Queen,
-                'J' => Card::Jack,
-                'T' => Card::Ten,
-                '9' => Card::Nine,
-                '8' => Card::Eight,
-                '7' => Card::Seven,
-                '6' => Card::Six,
-                '5' => Card::Five,
-                '4' => Card::Four,
-                '3' => Card::Three,
-                '2' => Card::Two,
-                _ => panic!("Unknown Card"),
-            })
-            .collect();
+    fn new(card_chars: &str, joker_instead_of_jack: bool) -> Hand {
+        let cards = parse_cards(card_chars, joker_instead_of_jack);
+        let jokers_count: u32 = cards
+            .iter()
+            .filter(|&c| joker_instead_of_jack && c.cmp(&Card::Joker) == Ordering::Equal)
+            .count() as u32;
         let two_largest_groups = cards
             .iter()
+            .filter(|&c| !(joker_instead_of_jack && c.cmp(&Card::Joker) == Ordering::Equal))
             .into_group_map_by(|&c| c.clone())
             .values()
             .map(|v| v.len() as u32)
@@ -75,67 +98,10 @@ impl Hand {
             .rev()
             .take(2)
             .collect_vec();
-        let hand_type = match (two_largest_groups.first(), two_largest_groups.get(1)) {
-            (Some(5), _) => HandType::Five,
-            (Some(4), _) => HandType::Four,
-            (Some(3), Some(2)) => HandType::Full,
-            (Some(3), _) => HandType::Three,
-            (Some(2), Some(2)) => HandType::TwoPairs,
-            (Some(2), _) => HandType::Pair,
-            (Some(1), _) => HandType::HighCard,
-            _ => panic!("Unknown HandType"),
-        };
-
-        Hand { cards, hand_type }
-    }
-
-    fn new_with_joker(card_chars: &str) -> Hand {
-        let cards: Vec<Card> = card_chars
-            .chars()
-            .map(|c| match c {
-                'A' => Card::Ace,
-                'K' => Card::King,
-                'Q' => Card::Queen,
-                'J' => Card::Joker,
-                'T' => Card::Ten,
-                '9' => Card::Nine,
-                '8' => Card::Eight,
-                '7' => Card::Seven,
-                '6' => Card::Six,
-                '5' => Card::Five,
-                '4' => Card::Four,
-                '3' => Card::Three,
-                '2' => Card::Two,
-                _ => panic!("Unknown Card"),
-            })
-            .collect();
-        let jokers_count = cards
-            .iter()
-            .filter(|&c| c.cmp(&Card::Joker) == Ordering::Equal)
-            .count();
-        let two_largest_groups = cards
-            .iter()
-            .filter(|&c| c.cmp(&Card::Joker) != Ordering::Equal)
-            .into_group_map_by(|&c| c.clone())
-            .values()
-            .map(|v| v.len())
-            .sorted()
-            .rev()
-            .take(2)
-            .collect_vec();
-        let hand_type = match (
-            two_largest_groups.first().unwrap_or(&0) + jokers_count,
-            two_largest_groups.get(1),
-        ) {
-            (5, _) => HandType::Five,
-            (4, _) => HandType::Four,
-            (3, Some(2)) => HandType::Full,
-            (3, _) => HandType::Three,
-            (2, Some(2)) => HandType::TwoPairs,
-            (2, _) => HandType::Pair,
-            (1, _) => HandType::HighCard,
-            _ => panic!("Unknown HandType"),
-        };
+        let hand_type = get_hand_type(
+            Some(two_largest_groups.first().unwrap_or(&0) + jokers_count),
+            two_largest_groups.get(1).cloned(),
+        );
 
         Hand { cards, hand_type }
     }
@@ -164,24 +130,27 @@ struct Position {
     bid: u64,
 }
 
-fn parse_position(input: &str) -> IResult<&str, Position> {
-    let (input, (card_chars, bid)) = separated_pair(alphanumeric1, tag(" "), u64)(input)?;
-    Ok((
-        input,
-        Position {
-            hand: Hand::new(card_chars),
-            bid,
-        },
-    ))
+fn parse_position(joker_instead_of_jack: bool) -> impl Fn(&str) -> IResult<&str, Position> {
+    move |input: &str| {
+        let (input, (card_chars, bid)) = separated_pair(alphanumeric1, tag(" "), u64)(input)?;
+        Ok((
+            input,
+            Position {
+                hand: Hand::new(card_chars, joker_instead_of_jack),
+                bid,
+            },
+        ))
+    }
 }
 
-fn parse_input(input: &str) -> IResult<&str, Vec<Position>> {
-    let (input, positions) = separated_list1(newline, parse_position)(input)?;
+fn parse_input(input: &str, joker_instead_of_jack: bool) -> IResult<&str, Vec<Position>> {
+    let (input, positions) =
+        separated_list1(newline, parse_position(joker_instead_of_jack))(input)?;
     Ok((input, positions))
 }
 
 pub fn part_one(input: &str) -> Option<u64> {
-    let (_, positions) = parse_input(input).unwrap();
+    let (_, positions) = parse_input(input, false).unwrap();
     let result: u64 = positions
         .iter()
         .sorted_by(|p1, p2| p1.hand.cmp(&p2.hand))
@@ -191,24 +160,8 @@ pub fn part_one(input: &str) -> Option<u64> {
     Some(result)
 }
 
-fn parse_position_with_jokers(input: &str) -> IResult<&str, Position> {
-    let (input, (card_chars, bid)) = separated_pair(alphanumeric1, tag(" "), u64)(input)?;
-    Ok((
-        input,
-        Position {
-            hand: Hand::new_with_joker(card_chars),
-            bid,
-        },
-    ))
-}
-
-fn parse_input_part_2(input: &str) -> IResult<&str, Vec<Position>> {
-    let (input, positions) = separated_list1(newline, parse_position_with_jokers)(input)?;
-    Ok((input, positions))
-}
-
 pub fn part_two(input: &str) -> Option<u64> {
-    let (_, positions) = parse_input_part_2(input).unwrap();
+    let (_, positions) = parse_input(input, true).unwrap();
     let result: u64 = positions
         .iter()
         .sorted_by(|p1, p2| p1.hand.cmp(&p2.hand))
