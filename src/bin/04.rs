@@ -38,13 +38,8 @@ fn parse_card(input: &str) -> IResult<&str, Card> {
     ))
 }
 
-fn parse_input(input: &str) -> Vec<Card> {
-    let (_, cards) = separated_list1(newline, parse_card)(input).unwrap();
-    cards
-}
-
 pub fn part_one(input: &str) -> Option<u32> {
-    let cards = parse_input(input);
+    let (_, cards) = separated_list1(newline, parse_card)(input).unwrap();
     let result: u32 = cards
         .iter()
         .map(|c| {
@@ -56,7 +51,7 @@ pub fn part_one(input: &str) -> Option<u32> {
             if common_numbers.is_empty() {
                 0
             } else {
-                1 << (common_numbers.len() as isize - 1)
+                (2_u32).pow(common_numbers.len() as u32 - 1)
             }
         })
         .sum();
@@ -64,7 +59,7 @@ pub fn part_one(input: &str) -> Option<u32> {
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    let cards = parse_input(input);
+    let (_, cards) = separated_list1(newline, parse_card)(input).unwrap();
     let card_number_of_commons: HashMap<u32, usize> = cards
         .iter()
         .map(|c| {
@@ -76,15 +71,16 @@ pub fn part_two(input: &str) -> Option<u32> {
             (c.id, common_numbers.len())
         })
         .collect();
-    let mut cards_to_see: Vec<u32> = card_number_of_commons.keys().copied().collect();
-    let mut cards_seen: Vec<u32> = Vec::new();
-    while let Some(card) = cards_to_see.pop() {
-        for i in card + 1..=card + card_number_of_commons[&card] as u32 {
-            cards_to_see.push(i);
+    let mut number_of_cards: HashMap<u32, u32> = card_number_of_commons
+        .keys()
+        .map(|&card_id| (card_id, 1_u32))
+        .collect();
+    for card_id in cards.iter().map(|c| c.id) {
+        for i in card_id + 1..=card_id + card_number_of_commons[&card_id] as u32 {
+            *number_of_cards.entry(i).or_insert(1) += number_of_cards[&card_id];
         }
-        cards_seen.push(card);
     }
-    Some(cards_seen.len() as u32)
+    Some(number_of_cards.values().sum())
 }
 
 #[cfg(test)]
