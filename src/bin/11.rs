@@ -44,8 +44,8 @@ fn solve(input: &str, expand_rate: usize) -> usize {
                 .filter(|&j| j > min(x1, x2) && j < max(x1, x2))
                 .count();
             ((*x2 as i32 - *x1 as i32).abs() + (*y2 as i32 - *y1 as i32).abs()) as usize
-                + expand_rate * passed_empty_columns
-                + expand_rate * passed_empty_rows
+                + (expand_rate - 1) * passed_empty_columns
+                + (expand_rate - 1) * passed_empty_rows
         })
         .sum()
 }
