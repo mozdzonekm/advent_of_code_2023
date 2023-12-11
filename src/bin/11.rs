@@ -6,7 +6,7 @@ advent_of_code::solution!(11);
 
 type Position = (usize, usize);
 
-pub fn part_one(input: &str) -> Option<usize> {
+fn solve(input: &str, expand_rate: usize) -> usize {
     let maze: Vec<&str> = input.lines().collect();
     let galaxies: Vec<Position> = enumerate(&maze)
         .flat_map(|(i, row)| {
@@ -29,7 +29,7 @@ pub fn part_one(input: &str) -> Option<usize> {
             all(column, |&c| c == '.')
         })
         .collect();
-    let result: usize = galaxies
+    galaxies
         .into_iter()
         .combinations(2)
         .map(|combinations| {
@@ -44,56 +44,18 @@ pub fn part_one(input: &str) -> Option<usize> {
                 .filter(|&j| j > min(x1, x2) && j < max(x1, x2))
                 .count();
             ((*x2 as i32 - *x1 as i32).abs() + (*y2 as i32 - *y1 as i32).abs()) as usize
-                + passed_empty_columns
-                + passed_empty_rows
+                + expand_rate * passed_empty_columns
+                + expand_rate * passed_empty_rows
         })
-        .sum();
-    Some(result)
+        .sum()
+}
+
+pub fn part_one(input: &str) -> Option<usize> {
+    Some(solve(input, 2))
 }
 
 pub fn part_two(input: &str) -> Option<usize> {
-    let maze: Vec<&str> = input.lines().collect();
-    let galaxies: Vec<Position> = enumerate(&maze)
-        .flat_map(|(i, row)| {
-            row.char_indices().filter_map(move |(j, c)| match c {
-                '.' => None,
-                _ => Some((j, i)),
-            })
-        })
-        .collect();
-    let empty_rows: Vec<usize> = enumerate(&maze)
-        .filter(|(_, row)| all(row.chars(), |c| c == '.'))
-        .map(|(i, _)| i)
-        .collect();
-    let empty_columns: Vec<usize> = (0..maze.len())
-        .filter(|j| {
-            let column = &maze
-                .iter()
-                .map(|row| row.chars().collect_vec()[*j])
-                .collect_vec();
-            all(column, |&c| c == '.')
-        })
-        .collect();
-    let result: usize = galaxies
-        .into_iter()
-        .combinations(2)
-        .map(|combinations| {
-            let (x1, y1) = combinations.first().unwrap();
-            let (x2, y2) = combinations.get(1).unwrap();
-            let passed_empty_rows: usize = empty_rows
-                .iter()
-                .filter(|&i| i > min(y1, y2) && i < max(y1, y2))
-                .count();
-            let passed_empty_columns: usize = empty_columns
-                .iter()
-                .filter(|&j| j > min(x1, x2) && j < max(x1, x2))
-                .count();
-            ((*x2 as i32 - *x1 as i32).abs() + (*y2 as i32 - *y1 as i32).abs()) as usize
-                + (1000000 - 1) * passed_empty_columns
-                + (1000000 - 1) * passed_empty_rows
-        })
-        .sum();
-    Some(result)
+    Some(solve(input, 1_000_000))
 }
 
 #[cfg(test)]
