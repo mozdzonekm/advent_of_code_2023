@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use petgraph::{algo::dijkstra, graph::DiGraph, visit::EdgeRef};
+use petgraph::{algo::dijkstra, graph::DiGraph};
 
 advent_of_code::solution!(17);
 
